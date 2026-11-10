@@ -1,6 +1,9 @@
 # Corrida de cavalos com I.A
+
 import random
 class Corrida_Env:
+    
+    # regras do ambiente
     def __init__(self):
 
         # cavalos
