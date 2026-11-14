@@ -21,10 +21,12 @@ class Corrida_Env:
                         "cansaco" : 0.75} 
 
         # financeiro
+        self.saldo_inicial = 100
         self.range_aposta = [0, 0.1, 0.25, 0.50, 0.75, 1] # quantidade disponivel pra aposta de acordo com o saldo atual
-
+        self.tabela_odds = [1, 1.75, 2.25, 3, 5] # lista das odds
+        
         # recompesas
-        self.falir = 0 # a qualquer momentohe
+        self.falir = 0 # a qualquer momento
         self.acertar_vencedor = 5 # por corrida
         self.acertar_ordem_e_vencedor = self.acertar_vencedor + 10 # por corrida
         self.terminar_com_saldo_positivo = 100 # no fim da secao
@@ -36,46 +38,35 @@ class Corrida_Env:
     # inicio da secao
 
     def reset(self):
-
-        saldo_inicial = 100
-        corrida_atual = 1
+        self.saldo = self.saldo_inicial
+        self.corrida_atual = 0
         self.cavalos = []
         extra = self.pontos_totais - self.pontos_minimos * len(self.atributos)
 
+        # 1) cria os cavalos
         for i in range(self.n_cavalos):
-           
             sorteio = [random.random() ** 2 for _ in self.atributos]
             soma = sum(sorteio)
 
-           
-            cavalo = {"nome": self.nome_do_cavalos[i], "cansaco" : 0}
+            cavalo = {"nome": self.nome_do_cavalos[i], "cansaco": 0, "desgaste": 0}
 
-           
             for j in range(len(self.atributos)):
                 nome_atributo = self.atributos[j]
-                cavalo[nome_atributo] = round(self.pontos_minimos + extra * sorteio[j] / soma,2)
+                cavalo[nome_atributo] = round(self.pontos_minimos + extra * sorteio[j] / soma, 2)
 
-            media = self.pontos_totais/(cavalo["velocidade_maxima"] * 0.8 + cavalo["aceleracao"] * 0.2 +  cavalo["vigor"] * 0.5 )      
-            cavalo["odd"] = round(media, 2)
-            
+            cavalo["forca"] = round(cavalo["velocidade_maxima"] * 0.8
+                                    + cavalo["aceleracao"] * 0.2
+                                    + cavalo["vigor"] * 0.5, 2)
+
             self.cavalos.append(cavalo)
 
-        # ajustando a odd
-
-        total = 0
-        
-        for k in range(self.n_cavalos):
-            total += cavalo["odd"]
-
-       
-
-
-
-            
-
-    # cada run
-    def step(self, acao):
-        pass
+        # 2) cada cavalo conta quantos são mais fortes que ele
+        for cavalo in self.cavalos:
+            posicao = 0
+            for outro in self.cavalos:
+                if outro["forca"] > cavalo["forca"]:
+                    posicao += 1
+            cavalo["odd"] = self.tabela_odds[posicao]
 
 env = Corrida_Env()
 env.reset()
