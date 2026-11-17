@@ -1,4 +1,5 @@
 # agente.py
+
 import random
 import copy
 from collections import deque
@@ -10,7 +11,7 @@ import matplotlib.pyplot as plt
 from ambiente import Corrida_Env, RedeDQN
 
 # hiperparâmetros
-EPISODIOS = 5000          # quantas sessões de 10 corridas treinar
+EPISODIOS = 5000          # quantas sessões de n corridas treinar
 GAMMA = 0.95              # peso do futuro (0 = só importa o agora)
 LR = 1e-3                 # velocidade de aprendizado
 BATCH = 64                # quantas experiências por atualização
@@ -163,22 +164,23 @@ def main():
     plt.plot(saldos_treino, alpha=0.3, label="saldo por sessão")
     plt.plot(suavizado, label=f"média móvel ({janela})")
     plt.axhline(100, color="red", linestyle="--", label="saldo inicial")
+    plt.yscale("log")
     plt.xlabel("sessão de treino")
-    plt.ylabel("saldo final")
+    plt.ylabel("saldo final (escala log)")
     plt.title("Aprendizado do DQN")
     plt.legend()
-    plt.savefig("aprendizado.png")
+    plt.savefig("aprendizado.png", dpi=150)
 
     plt.figure(figsize=(10, 4))
-    plt.hist(base, bins=40, alpha=0.6, label="aleatório")
-    plt.hist(aprendido, bins=40, alpha=0.6, label="DQN")
-    plt.axvline(100, color="red", linestyle="--")
-    plt.xlabel("saldo final da sessão")
+    limite = 300
+    plt.hist([min(s, limite) for s in base], bins=40, alpha=0.6, label="aleatório")
+    plt.hist([min(s, limite) for s in aprendido], bins=40, alpha=0.6, label="DQN")
+    plt.axvline(100, color="red", linestyle="--", label="saldo inicial")
+    plt.xlabel(f"saldo final da sessão (valores acima de {limite} aparecem em {limite})")
     plt.ylabel("nº de sessões")
     plt.title("Aleatório x DQN")
     plt.legend()
-    plt.savefig("comparacao.png")
-    print("gráficos salvos: aprendizado.png e comparacao.png")
+    plt.savefig("comparacao.png", dpi=150)
 
     torch.save(rede.state_dict(), "rede_dqn.pt")
     return rede
