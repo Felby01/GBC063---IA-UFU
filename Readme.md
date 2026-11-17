@@ -2,6 +2,7 @@
 
 # Simulação de Corrida de Cavalos com Inteligência Artificial
 
+![Demonstração do agente](demo.gif)
 
 > Sobre o projeto
 
