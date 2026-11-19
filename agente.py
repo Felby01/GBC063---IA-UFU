@@ -1,5 +1,8 @@
 # agente.py
 
+import matplotlib.pyplot as plt
+from matplotlib.animation import PillowWriter
+
 import random
 import copy
 from collections import deque
@@ -11,7 +14,7 @@ import matplotlib.pyplot as plt
 from ambiente import Corrida_Env, RedeDQN
 
 # hiperparâmetros
-EPISODIOS = 5000          # quantas sessões de n corridas treinar
+EPISODIOS = 100000        # quantas sessões de n corridas treinar
 GAMMA = 0.95              # peso do futuro (0 = só importa o agora)
 LR = 1e-3                 # velocidade de aprendizado
 BATCH = 64                # quantas experiências por atualização
@@ -203,6 +206,95 @@ def mostrar_sessao(rede):
         print(f"  palpite de pódio: {ordem_nomes}")
         print(f"  vencedor: {env.ultimo_ranking[0]} | pódio real: {env.ultimo_ranking[:3]}\n")
 
+def gerar_gif_sessao(rede, arquivo="simulacao_sessao.gif", quadros=15):
+    env = Corrida_Env()
+    env.reset()
+    corridas = []
+    done = False
+    while not done:
+        with torch.no_grad():
+            acao = int(rede(env.estado()).argmax())
+        cavalo, fracao, ordem = decodificar(acao, env)
+        # captura o evento e os afetados ANTES do step, pois o step já sorteia o próximo
+        evento = env.evento_atual
+        afetados = list(env.afetados)
+        saldo_antes = env.saldo
+        _, done = env.step(cavalo, fracao, ordem)
+        corridas.append({
+            "num": env.corrida_atual,
+            "evento": evento,
+            "afetados": afetados,
+            "escolhido": env.nome_do_cavalos[cavalo],
+            "fracao": env.ultima_fracao_usada,
+            "antes": saldo_antes,
+            "depois": env.saldo,
+            "ranking": list(env.ultimo_ranking),
+            "trajetoria": list(env.trajetoria)
+        })
+
+    nomes = env.nome_do_cavalos
+    n = len(nomes)
+    cores = dict(zip(nomes, ["#2a6fdb", "#2e9e4f", "#d63b3b", "#e8b400", "#8a4bd6", "#7d7d7d"]))
+    cor_evento = {"velocidade_aumentada": "#c8ebd2", "odd_aumentada": "#c8ebd2", "vigor_divino": "#c8ebd2",
+                  "lentidao": "#f4c7c7", "odd_reduzida": "#f4c7c7", "cansaco": "#f4c7c7"}
+
+    fig = plt.figure(figsize=(11, 5.5), facecolor="#f5f1e8")
+    ax = fig.add_axes([0.03, 0.1, 0.63, 0.8])
+    axt = fig.add_axes([0.7, 0.1, 0.28, 0.8])
+
+    writer = PillowWriter(fps=10)
+    with writer.saving(fig, arquivo, dpi=100):
+        for c in corridas:
+            for f in range(1, quadros + 1):
+                t = f / quadros
+                suave = t * t * (3 - 2 * t)   # movimento suave, começa e termina devagar
+
+                ax.clear()
+                axt.clear()
+                ax.set_facecolor("#fbfaf6")
+                ax.set_xlim(-14, 100)
+                ax.set_ylim(-0.7, n - 0.3)
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.axvline(95, color="black", linewidth=4, zorder=1)
+                ax.set_title(f"Corrida {c['num']} de {env.n_corridas}", loc="left", fontsize=12)
+
+                for i, nome in enumerate(nomes):
+                    y = n - 1 - i   # raia fixa: cada cavalo sempre na mesma linha
+                    ax.axhline(y, color="#dddddd", linewidth=0.8, zorder=0)
+                    ax.text(-13, y, nome.replace("Cavalo ", ""), va="center", fontsize=9)
+
+                    maior_final = max(c["trajetoria"][-1].values())
+                    passo = int(t * (len(c["trajetoria"]) - 1))
+                    x = 4 + (c["trajetoria"][passo][nome] / maior_final) * 90
+                    borda = "red" if nome in c["afetados"] else "white"
+                    ax.scatter(x, y, s=380, color=cores[nome], edgecolors=borda,
+                               linewidths=3, zorder=3)
+
+                linhas = [
+                    ["Corrida", f"{c['num']} de {env.n_corridas}"],
+                    ["Evento", c["evento"].replace("_", " ")],
+                    ["Afetados", ", ".join(a.replace("Cavalo ", "") for a in c["afetados"])],
+                    ["Escolheu", c["escolhido"].replace("Cavalo ", "")],
+                    ["Fração", f"{c['fracao']:.0%}"],
+                    ["Saldo", f"{c['antes']:.2f} -> {c['depois']:.2f}"],
+                    ["Vencedor", c["ranking"][0].replace("Cavalo ", "")],
+                ]
+                tab = axt.table(cellText=linhas, cellLoc="left", colWidths=[0.4, 0.6], loc="upper center")
+                tab.auto_set_font_size(False)
+                tab.set_fontsize(9)
+                tab.scale(1, 2.2)
+                for (r, col), cel in tab.get_celld().items():
+                    cel.set_edgecolor("#cccccc")
+                    cel.set_facecolor("#e9e4d6" if col == 0 else "white")
+                tab[(1, 1)].set_facecolor(cor_evento.get(c["evento"], "#dddddd"))
+                axt.axis("off")
+
+                writer.grab_frame()
+
+    plt.close(fig)
+    print(f"gif salvo: {arquivo}")
+
 if __name__ == "__main__":
     rede_treinada = main()
-    mostrar_sessao(rede_treinada)
+    gerar_gif_sessao(rede_treinada)

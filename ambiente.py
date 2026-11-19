@@ -119,14 +119,19 @@ class Corrida_Env:
         return odd
 
     # corridas
-    def correr(self):
-        pontos = {}
+    def correr(self, passos=20):
+        # cada cavalo avança a cada passo: força * sorte do instante
+        posicoes = {c["nome"]: 0.0 for c in self.cavalos}
+        self.trajetoria = [dict(posicoes)]
 
-        for cavalo in self.cavalos:
-            sorte = random.uniform(0.9, 1.1)
-            pontos[cavalo["nome"]] = self.forca_na_corrida(cavalo) * sorte
+        for _ in range(passos):
+            for cavalo in self.cavalos:
+                sorte = random.uniform(0.9, 1.1)
+                avanco = self.forca_na_corrida(cavalo) * sorte / 100
+                posicoes[cavalo["nome"]] += avanco
+            self.trajetoria.append(dict(posicoes))
 
-        ranking = sorted(pontos, key=pontos.get, reverse=True)
+        ranking = sorted(posicoes, key=posicoes.get, reverse=True)
         return ranking
 
     # depois da corrida: cansaço sobe com pouco vigor, desgaste acumula
@@ -146,8 +151,8 @@ class Corrida_Env:
         # obriga a apostar a menor faixa diferente de zero
         if self.ultima_nao_apostou and acao_fracao == 0:
             acao_fracao = 1
+        self.ultima_fracao_usada = self.range_aposta[acao_fracao]
         self.ultima_nao_apostou = (acao_fracao == 0)
-
         saldo_antes = self.saldo
 
         # decide quanto apostar
